@@ -4,10 +4,15 @@ import com.pingine.fleetpulse.domain.Trip;
 import com.pingine.fleetpulse.persistence.mongo.TelemetryPoint;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -26,28 +31,34 @@ public class TripDetector {
     }
 
     private List<Trip> parseTelemetryPointForTrip(List<TelemetryPoint> points) {
-        List<Trip> resultParseTrip = null;
+        List<Trip> resultParseTrip = new ArrayList<>();
+        List<Trip.TripPoint> tripPoints = new ArrayList<>();
         Trip trip = null;
         for (TelemetryPoint point : points) {
             if (trip == null) {
-                trip = Trip.builder().vehicleId(point.getVehicleId()).startedAt(Instant.from(point.getTs())).build();
+                trip = Trip.builder()
+                        .vehicleId(point.getVehicleId())
+                        .startedAt(point.getTs().toInstant(ZoneOffset.UTC))
+                        .build();
+
             }
-            trip.getPoints().add(Trip.TripPoint
+            tripPoints.add(Trip.TripPoint
                     .builder()
-                    .ts(Instant.from(point.getTs()))
+                    .ts(point.getTs().toInstant(ZoneOffset.UTC))
                     .lat(point.getLat())
                     .lon(point.getLon())
                     .speedKph(point.getSpeed())
                     .build());
             if (!point.isIgnition()) {
-                Double avgSpeed = trip.getPoints().stream().map(Trip.TripPoint::getSpeedKph).mapToDouble(Double::doubleValue).average().orElse(0.0);
+                Double avgSpeed = tripPoints.stream().map(Trip.TripPoint::getSpeedKph).mapToDouble(Double::doubleValue).average().orElse(0.0);
                 resultParseTrip.add(Trip.builder()
                         .vehicleId(trip.getVehicleId())
                         .startedAt(trip.getStartedAt())
-                        .endedAt(Instant.from(point.getTs()))
+                        .endedAt(point.getTs().toInstant(ZoneOffset.UTC))
                         .avgSpeedKph(avgSpeed)
-                        .distanceKm(trip.getStartedAt().until(point.getTs(), ChronoUnit.HOURS) * avgSpeed)
-                        .points(trip.getPoints())
+                        .distanceKm(((double) Duration.between(trip.getStartedAt(), point.getTs().toInstant(ZoneOffset.UTC))
+                                .toMinutes() / 60 * avgSpeed))
+                        .points(tripPoints)
                         .build());
                 trip = null;
             }

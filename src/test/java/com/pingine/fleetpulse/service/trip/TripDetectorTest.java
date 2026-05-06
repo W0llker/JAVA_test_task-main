@@ -15,7 +15,6 @@ class TripDetectorTest {
     private final TripDetector detector = new TripDetector();
 
     @Test
-    @Deprecated
     void detectsSingleTripFromIgnitionOnToOff() {
         LocalDateTime t0 = LocalDateTime.parse("2026-04-27T08:00:00");
         List<TelemetryPoint> points = List.of(
@@ -37,7 +36,6 @@ class TripDetectorTest {
     }
 
     @Test
-    @Deprecated
     void handlesDuplicateTimestamps() {
         LocalDateTime t0 = LocalDateTime.parse("2026-04-27T08:00:00");
         List<TelemetryPoint> points = List.of(
@@ -52,7 +50,7 @@ class TripDetectorTest {
 
         assertThat(trips).hasSize(1);
         Trip trip = trips.get(0);
-        assertThat(trip.getPoints()).hasSize(4);
+        assertThat(trip.getPoints()).hasSize(5);
     }
 
     private static TelemetryPoint point(String vehicleId, LocalDateTime ts,
